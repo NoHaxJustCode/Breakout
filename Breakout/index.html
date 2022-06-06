@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Breakout Game</title>
+    <style>
+      * { padding: 0; margin: 0; }
+      canvas { background: #ddd; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="600" height="560"></canvas>
+
+<script>
+    var canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+    var ballRadius = 10;
+    var mainColor = randomColorGenerator();
+    var x = canvas.width/2; //ball location
+    var y = canvas.height-30; 
+    var dx = 2; //starting velocities
+    var dy = -2;
+    var paddleHeight = 10;
+    var paddleWidth = 75;
+    var paddleX = (canvas.width-paddleWidth)/2; //Starts in middle of screen
+    var paddleY = canvas.height-paddleHeight;
+    var rightPressed = false;
+    var leftPressed = false;
+    var theta = 0;
+    var brickRowCount = 3;
+    var brickColumnCount = 5;
+    var totalBricksLeft = brickRowCount*brickColumnCount;
+    var score = 0;
+    var brickWidth = 30;
+    var brickHeight = 30;
+    var brickPadding = 6;
+    var brickOffsetTop = 30;
+    var brickOffsetLeft = 30;
+    var bricks = [];
+    
+    for(var c=0; c<brickColumnCount; c++) {
+        bricks[c] = [];
+        for(var r=0; r<brickRowCount; r++) {
+            bricks[c][r] = {x: 0, y: 0, status: 1};
+        }
+    }
+    document.addEventListener("keydown", keyDownHandler, false); //Allows player movement using <- and ->
+    document.addEventListener("keyup", keyUpHandler, false);
+    document.addEventListener("mousemove", mouseMoveHandler, false); //Allows player movement using mouse
+
+    function drawBall(color) 
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, ballRadius, 0, Math.PI*2); //balls movement
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    function drawScore() {
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#0095DD";
+        ctx.fillText("Score: "+score, 8, 20);
+    }
+
+    function drawBricks() {
+        for(var c=0; c<brickColumnCount; c++) {
+            for(var r=0; r<brickRowCount; r++) {
+                if(bricks[c][r].status == 1) {
+                    var brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+                    var brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+                    bricks[c][r].x = brickX;
+                    bricks[c][r].y = brickY;
+                    ctx.beginPath();
+                    ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                    ctx.fillStyle = "#0095DD";
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+    function keyDownHandler(e) 
+    {
+        if(e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = true;
+        }
+        else if(e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = true;
+        }
+    }
+
+    function keyUpHandler(e) 
+    {
+        if(e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = false;
+        }
+        else if(e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = false;
+        }
+    }
+
+    function mouseMoveHandler(e) {
+        var relativeX = e.clientX - canvas.offsetLeft;
+        if(relativeX > 0 && relativeX < canvas.width) {
+            paddleX = relativeX - paddleWidth/2;
+        }
+    }
+
+    function drawPaddle() 
+    {
+        ctx.beginPath();
+        ctx.rect(paddleX, canvas.height-paddleHeight, paddleWidth, paddleHeight);
+        ctx.fillStyle = "#0095DD";
+        ctx.fill();
+        ctx.closePath();
+    }
+    function calculateNewVelocityAngle()
+    {
+        var relativeIntersectY = ((paddleHeight/2.0) + paddleY) - (y+(ballRadius/2.0));
+        var normalIntersectY = relativeIntersectY/(paddleHeight/2.0);
+        var theta = normalIntersectY*45;
+        theta = Math.toRadians(theta);
+    }
+
+    function collisionDetection() {
+        for(var c=0; c<brickColumnCount; c++) {
+            for(var r=0; r<brickRowCount; r++) {
+                var b = bricks[c][r];
+                if(b.status == 1) {
+                    if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
+                        dy = -dy;
+                        b.status = 0;
+                        totalBricksLeft-=1;
+                        score++;
+                    }
+                }
+            }
+        }
+    }
+
+    function draw() 
+    {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBricks();
+        drawBall(mainColor);
+        drawPaddle();
+        collisionDetection();
+        drawScore();
+        if(totalBricksLeft==0)
+        {
+            alert("WINNER!");
+            document.location.reload();
+            clearInterval(interval); // Chrome ends game            
+        }
+        
+        if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) 
+        { //bouncing off side walls
+            dx = -dx;
+            randomColorGenerator();
+        }
+        if(y + dy < ballRadius) 
+        { //bouncing off ceiling
+            dy = -dy;
+            randomColorGenerator();
+        } else if(y + dy > canvas.height-ballRadius) 
+        {
+            if(x > paddleX && x < paddleX + paddleWidth+2 ) //bouncing off paddle
+            {
+                dy = -dy;
+                dx += Math.abs(Math.cos(theta));
+                dy += Math.sin(theta);
+            }
+            else //if hits floor/misses paddle, game over
+            {
+                alert("GAME OVER");
+                document.location.reload();
+                clearInterval(interval); // Chrome ends game
+            }
+        }
+        
+            
+        if(rightPressed) 
+        {
+            paddleX += 4; //speed
+            if (paddleX + paddleWidth > canvas.width)//makes sure paddle is in bounds of screen
+                paddleX = canvas.width - paddleWidth;
+            
+        }
+        else if(leftPressed) {
+            paddleX -= 4;
+            if (paddleX < 0)
+                paddleX = 0;
+        }
+        x += dx;
+        y += dy;
+    }
+    function randomColorGenerator()
+    {
+        var randomColor = Math.floor(Math.random()*16777215).toString(16); // generates random hex value in format ######
+        mainColor = "#"+randomColor;
+    }
+    setInterval(draw, 10);
+</script>
+
+</body>
+</html>
